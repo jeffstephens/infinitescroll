@@ -38,7 +38,7 @@ if($response = file_get_contents(FEED_URI)) {
     }
 
     else {
-        $fetchUntil = $_GET['fetchUntil'];
+        $fetchUntil = '';
     }
 
     $data = new SimpleXMLElement($response);
