@@ -1,4 +1,18 @@
 <?php
+/*
+ * Infinite Scroll + Usability
+ * author: Jeff Stephens <jefftheman45@gmail.com>
+ *
+ * This is the backend for an example webapp that has "infinite scroll"
+ * capability - as you scroll down the page, more content automatically loads
+ * in - yet doesn't break basic browser navigation like the back button and
+ * address bar.
+ *
+ * This implementation is meant to be as readable as possible. It repeats
+ * itself a little bit, but hopefully it's quite clear to follow how the
+ * logic works.
+ */
+
 define('FEED_URI', 'https://medium.com/feed/design-ux');
 define('POSTS_PER_PAGE', 3);
 
@@ -10,72 +24,92 @@ function getGuidFromPermalink($permalink) {
 }
 
 if($response = file_get_contents(FEED_URI)) {
-    $output = array();
-    $output['jsonCode'] = 200;
-    $output['html'] = ''; // we'll always append later
 
     if(strlen($_GET['oldestPost'])) {
         $oldestPost = $_GET['oldestPost'];
     }
+
     else {
         $oldestPost = '';
     }
 
-    $fetchUntil = $_GET['fetchUntil'];
+    if(strlen($_GET['fetchUntil'])) {
+        $fetchUntil = $_GET['fetchUntil'];
+    }
 
-    file_put_contents('log', "\nfetching until guid " . $fetchUntil, FILE_APPEND);
+    else {
+        $fetchUntil = $_GET['fetchUntil'];
+    }
 
-    $data = new SimpleXMLElement( $response );
+    $data = new SimpleXMLElement($response);
+    $returnPosts = array(); // this will hold post objects to be returned
     $i = 0;
-    $startPosts = false; // true when we've started outputting posts
 
-    foreach($data->channel->item as $post) {
-        // if we've started outputting posts, we've output POSTS_PER_PAGE, and we're not fetching posts until a specified one, we're done
-        if($i >= POSTS_PER_PAGE && $startPosts === true && !strlen($fetchUntil)) {
-            file_put_contents('log', "\ndone fetching posts, already output enough and no fetchUntil");
-            break;
-        }
+    // Case 1: We're returning an initial set of posts (POSTS_PER_PAGE of them)
+    if(!strlen($oldestPost) && !strlen($fetchUntil)) {
+        foreach($data->channel->item as $post) {
 
-        // if we're starting at a post older than the first one...
-        if(strlen($oldestPost)) {
-
-            // and we're not fetching all posts until the specified one...
-            if(!strlen($fetchUntil)) {
-
-                // and we haven't started outputting posts yet...
-                if($startPosts === false) {
-
-                    // if this is the oldest post we've previously returned...
-                    if(getGuidFromPermalink($post->guid) == $oldestPost) {
-                        $startPosts = true;
-                        $i = 0;
-                        continue; // the next post is where we want to actually start
-                    }
-                    else {
-                        continue;
-                    }
-                }
+            // do this to avoid iterating more times than there are items in the RSS feed:
+            if($i >= POSTS_PER_PAGE) {
+                break;
             }
+
+            $returnPosts[] = $post;
+            $i++;
         }
+    }
 
-        // otherwise, we're fetching the first pageful of posts. start with the first one in the feed.
-        else {
-            $startPosts = true;
+    // Case 2: We're fetching an additional chunk of posts given the oldest post the client has
+    else if(strlen($oldestPost)) {
+        $startedOutput = false;
+
+        foreach($data->channel->item as $post) {
+
+            // Iterate until we find the oldest post the client has. Begin output after that.
+            if(getGuidFromPermalink($post->guid) == $oldestPost) {
+                $startedOutput = true;
+                $i = 0;
+                continue;
+            }
+
+            if($startedOutput) {
+
+                // do this to avoid iterating more times than there are items in the RSS feed:
+                if($i >= POSTS_PER_PAGE) {
+                    break;
+                }
+
+                $returnPosts[] = $post;
+            }
+
+            $i++;
         }
+    }
 
-        $output['html'] .= "<h3 id=\"" . getGuidFromPermalink($post->guid) . "\"><a href=\"$post->link\">$post->title</a></h3>";
-        $output['html'] .= "<blockquote><p>" . strip_tags($post->description) . "</p></blockquote>";
+    // Case 3: We're all posts since and including a given post.
+    // This is used for restoring autoscrolled content after a browser navigation.
+    else if(strlen($fetchUntil)) {
+        foreach($data->channel->item as $post) {
 
-        // grab the GUID of the oldest post. this makes pagination easy.
-        $output['oldestPost'] = getGuidFromPermalink($post->guid);
+            $returnPosts[] = $post;
 
-        $i++;
+            // After we've added the post specified in fetchUntil, we're done
+            if(getGuidFromPermalink($post->guid) == $fetchUntil) {
+                break;
+            }
 
-        // if we've reached the oldest post we're supposed to fetch, we're done
-        if(strlen($fetchUntil) && getGuidFromPermalink($post->guid) == $fetchUntil) {
-            file_put_contents('log', "\ndone fetching posts, reached fetchUntil");
-            break;
         }
+    }
+
+    // Generate HTML and output JSON response
+    $output = array();
+    $output['jsonCode'] = 200;
+    $output['html'] = '';
+
+    foreach($returnPosts as $selectedPost) {
+        $output['html'] .= "<h3 id=\"" . getGuidFromPermalink($selectedPost->guid) . "\"><a href=\"$selectedPost->link\">$selectedPost->title</a></h3>";
+        $output['html'] .= "<blockquote><p>" . strip_tags($selectedPost->description) . "</p></blockquote>";
+        $output['oldestPost'] = getGuidFromPermalink($selectedPost->guid);
     }
 
     echo json_encode($output);
