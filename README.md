@@ -1,6 +1,8 @@
 # Accessible Infinite Scroll
 
 A simple demonstration of how to implement an infinite scroll autoload that preserves back button and address bar functionality.
+* [Live Demo](http://jeffastephens.com/infinitescroll/)
+* [Medium Post](https://medium.com/design-ux/51b224e42926)
 
 ## Motivation
 Sites all over the web these days have implemented views that will load content in as long as you keep scrolling. It's on Facebook, Youtube - everywhere. Yet despite a very simple technique to avoid it, **the overwhelming majority of these sites break fundamental browser usabilty**. If you accidentally click a link or refresh the page, you have to scroll or click your way all the way back through the content to get back to where you left off. That's incredibly annoying.
