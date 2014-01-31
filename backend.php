@@ -61,28 +61,25 @@ if($response = file_get_contents(FEED_URI)) {
 
     // Case 2: We're fetching an additional chunk of posts given the oldest post the client has
     else if(strlen($oldestPost)) {
-        $startedOutput = false;
+        $startedSaving = false;
 
         foreach($data->channel->item as $post) {
 
-            // Iterate until we find the oldest post the client has. Begin output after that.
-            if(getGuidFromPermalink($post->guid) == $oldestPost) {
-                $startedOutput = true;
-                $i = 0;
-                continue;
-            }
+            if($startedSaving) {
 
-            if($startedOutput) {
-
-                // do this to avoid iterating more times than there are items in the RSS feed:
+                // Do this to avoid iterating more times than there are items in the RSS feed:
                 if($i >= POSTS_PER_PAGE) {
                     break;
                 }
 
                 $returnPosts[] = $post;
+                $i++;
             }
 
-            $i++;
+            // Iterate until we find the oldest post the client has. Begin saving posts after that.
+            if(getGuidFromPermalink($post->guid) == $oldestPost) {
+                $startedSaving = true;
+            }
         }
     }
 
