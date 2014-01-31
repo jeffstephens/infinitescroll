@@ -1,7 +1,4 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 define('FEED_URI', 'https://medium.com/feed/design-ux');
 define('POSTS_PER_PAGE', 3);
 
