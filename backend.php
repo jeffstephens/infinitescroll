@@ -83,7 +83,7 @@ if($response = file_get_contents(FEED_URI)) {
         }
     }
 
-    // Case 3: We're all posts since and including a given post.
+    // Case 3: We're fetching all posts since and including a given post.
     // This is used for restoring autoscrolled content after a browser navigation.
     else if(strlen($fetchUntil)) {
         foreach($data->channel->item as $post) {
